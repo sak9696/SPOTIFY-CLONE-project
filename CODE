@@ -1,0 +1,145 @@
+import os
+import tkinter as tk
+from tkinter import ttk, messagebox
+import pygame
+
+# Sample music data
+music_data = {
+    "English": {
+        "Arijit Singh": ["Akhiyan.mp3", "Aaram_Aata_Hai_Slowed__Reverb.mp3"],
+        "Shreya Ghoshal": ["Agar_Tum_Mil_Jao_.mp3", "Akhiyan.mp3"]
+    },
+    "Hindi": {
+        "Arijit Singh": ["Akhiyan.mp3", "Aaram_Aata_Hai_Slowed__Reverb.mp3"],
+        "Shreya Ghoshal": ["Agar_Tum_Mil_Jao_.mp3", "Akhiyan.mp3"]
+    },
+    "Spanish": {
+        "Arijit Singh": ["Akhiyan.mp3", "Aaram_Aata_Hai_Slowed__Reverb.mp3"],
+        "Shreya Ghoshal": ["Agar_Tum_Mil_Jao_.mp3", "Akhiyan.mp3"]
+    }
+}
+
+# Initialize pygame mixer
+pygame.mixer.init()
+
+class SpotifyClone:
+    def __init__(self, root):  # ✅ Fixed __init__
+        self.root = root
+        self.root.title("Spotify Clone")
+        self.root.geometry("500x500")
+        self.root.config(bg="#121212")
+
+        self.username = tk.StringVar()
+        self.password = tk.StringVar()
+        self.language = tk.StringVar()
+        self.artist = tk.StringVar()
+        self.song_index = 0
+        self.songs = []
+
+        self.create_login_page()
+
+    def create_login_page(self):
+        self.clear_ui()
+        frame = tk.Frame(self.root, bg="#1DB954", padx=20, pady=40)
+        frame.pack(expand=True)
+
+        tk.Label(frame, text="Spotify Clone", font=("Helvetica", 24, "bold"), fg="white", bg="#1DB954").grid(row=0, column=0, columnspan=2, pady=20)
+        tk.Label(frame, text="Username:", font=("Helvetica", 12), fg="white", bg="#1DB954").grid(row=1, column=0, pady=10)
+        tk.Entry(frame, textvariable=self.username, font=("Helvetica", 12)).grid(row=1, column=1, pady=10)
+        tk.Label(frame, text="Password:", font=("Helvetica", 12), fg="white", bg="#1DB954").grid(row=2, column=0, pady=10)
+        tk.Entry(frame, textvariable=self.password, show="*", font=("Helvetica", 12)).grid(row=2, column=1, pady=10)
+        tk.Button(frame, text="Login", font=("Helvetica", 14, "bold"), bg="white", fg="#1DB954", command=self.handle_login).grid(row=3, column=0, columnspan=2, pady=20)
+
+    def handle_login(self):
+        if self.username.get() == "user" and self.password.get() == "password":
+            messagebox.showinfo("Login Successful", "Welcome to the Music Player!")
+            self.create_language_ui()
+        else:
+            messagebox.showerror("Login Error", "Invalid username or password")
+
+    def create_language_ui(self):
+        self.clear_ui()
+        tk.Label(self.root, text="Select Language", font=("Arial", 16), fg="white", bg="#121212").pack(pady=20)
+        langs = list(music_data.keys())
+        ttk.Combobox(self.root, values=langs, textvariable=self.language, font=("Arial", 12)).pack(pady=10)
+        tk.Button(self.root, text="Next", font=("Arial", 12, "bold"), bg="#1DB954", fg="white", command=self.create_artist_ui).pack(pady=20)
+
+    def create_artist_ui(self):
+        self.clear_ui()
+        lang = self.language.get()
+        tk.Label(self.root, text=f"Select Artist ({lang})", font=("Arial", 16), fg="white", bg="#121212").pack(pady=20)
+        artists = list(music_data.get(lang, {}).keys())
+        ttk.Combobox(self.root, values=artists, textvariable=self.artist, font=("Arial", 12)).pack(pady=10)
+        tk.Button(self.root, text="Show Songs", font=("Arial", 12, "bold"), bg="#1DB954", fg="white", command=self.show_music_player).pack(pady=20)
+
+    def show_music_player(self):
+        self.clear_ui()
+        lang = self.language.get()
+        artist = self.artist.get()
+        self.songs = music_data.get(lang, {}).get(artist, [])
+        self.song_index = 0
+
+        self.song_label = tk.Label(self.root, text=f"Now Playing: {self.songs[self.song_index]}", font=("Arial", 14), fg="#1DB954", bg="#121212")
+        self.song_label.pack(pady=15)
+
+        self.listbox = tk.Listbox(self.root, width=50, height=8, bg="#282828", fg="white", font=("Arial", 10))
+        self.listbox.pack()
+        for song in self.songs:
+            self.listbox.insert(tk.END, song)
+        self.listbox.select_set(self.song_index)
+
+        control_frame = tk.Frame(self.root, bg="#121212")
+        control_frame.pack(pady=15)
+
+        # Buttons
+        btn_style = {"font": ("Arial", 10, "bold"), "bg": "#1DB954", "fg": "white", "padx": 10, "pady": 5}
+        tk.Button(control_frame, text="Play", command=self.play_song, **btn_style).grid(row=0, column=0, padx=5)
+        tk.Button(control_frame, text="Pause", command=self.pause_song, **btn_style).grid(row=0, column=1, padx=5)
+        tk.Button(control_frame, text="Resume", command=self.resume_song, **btn_style).grid(row=0, column=2, padx=5)
+        tk.Button(control_frame, text="Stop", command=self.stop_song, **btn_style).grid(row=1, column=0, padx=5, pady=5)
+        tk.Button(control_frame, text="Next", command=self.next_song, **btn_style).grid(row=1, column=1, padx=5, pady=5)
+        tk.Button(control_frame, text="Previous", command=self.prev_song, **btn_style).grid(row=1, column=2, padx=5, pady=5)
+
+    def play_song(self):
+        if self.songs:
+            song = self.songs[self.song_index]
+            try:
+                pygame.mixer.music.load(song)
+                pygame.mixer.music.play()
+                self.update_song_label()
+            except Exception as e:
+                messagebox.showerror("Playback Error", f"Could not play {song}\n{e}")
+
+    def pause_song(self):
+        pygame.mixer.music.pause()
+
+    def resume_song(self):
+        pygame.mixer.music.unpause()
+
+    def stop_song(self):
+        pygame.mixer.music.stop()
+
+    def next_song(self):
+        if self.song_index < len(self.songs) - 1:
+            self.song_index += 1
+            self.play_song()
+
+    def prev_song(self):
+        if self.song_index > 0:
+            self.song_index -= 1
+            self.play_song()
+
+    def update_song_label(self):
+        self.song_label.config(text=f"Now Playing: {self.songs[self.song_index]}")
+        self.listbox.select_clear(0, tk.END)
+        self.listbox.select_set(self.song_index)
+
+    def clear_ui(self):
+        for widget in self.root.winfo_children():
+            widget.destroy()
+
+# ✅ Fixed __name__ check
+if __name__ == "__main__":
+    root = tk.Tk()
+    app = SpotifyClone(root)
+    root.mainloop()
